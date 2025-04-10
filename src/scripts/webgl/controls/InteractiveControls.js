@@ -27,6 +27,8 @@ export default class InteractiveControls extends EventEmitter {
 
 		this.isDown = false;
 
+		this.touchParticles = {};  // To store particles by touchId
+
 		this.browser = browser();
 
 		this.enable();
@@ -89,25 +91,20 @@ export default class InteractiveControls extends EventEmitter {
 		}
 	}
 
+	// This function will now handle multiple touches
 	onMove(e) {
-		const t = (e.touches) ? e.touches[0] : e;
-		const touch = { x: t.clientX, y: t.clientY };
+		const touches = e.touches;
 
-		this.mouse.x = ((touch.x + this.rect.x) / this.rect.width) * 2 - 1;
-		this.mouse.y = -((touch.y + this.rect.y) / this.rect.height) * 2 + 1;
+		// Loop through each touch and update the corresponding particle
+		for (let i = 0; i < touches.length; i++) {
+			const touch = touches[i];
+			const touchId = touch.identifier;
+			const touchPosition = new THREE.Vector3(touch.clientX, touch.clientY, 0);
 
-		this.raycaster.setFromCamera(this.mouse, this.camera);
-
-		/*
-		// is dragging
-		if (this.selected && this.isDown) {
-			if (this.raycaster.ray.intersectPlane(this.plane, this.intersection)) {
-				this.emit('interactive-drag', { object: this.selected, position: this.intersection.sub(this.offset) });
-			}
-			return;
+			// Update the particle for the current touch
+			this.updateParticle(touchId, touchPosition);
 		}
-		*/
-
+		//handle intersections and hovering and raycasting 
 		const intersects = this.raycaster.intersectObjects(this.objects);
 
 		if (intersects.length > 0) {
@@ -135,29 +132,73 @@ export default class InteractiveControls extends EventEmitter {
 		}
 	}
 
+	// This function will create particles on touchstart for each touch
 	onDown(e) {
 		this.isDown = true;
 		this.onMove(e);
 
+		// For each touch, create or update particles
+		for (let i = 0; i < e.touches.length; i++) {
+			const touch = e.touches[i];
+			const touchId = touch.identifier;
+			const touchPosition = new THREE.Vector3(touch.clientX, touch.clientY, 0);
+
+			// Create particle or update it based on touchId
+			this.createParticle(touchId, touchPosition);
+		}
+
 		this.emit('interactive-down', { object: this.hovered, previous: this.selected, intersectionData: this.intersectionData });
 		this.selected = this.hovered;
-
-		if (this.selected) {
-			if (this.raycaster.ray.intersectPlane(this.plane, this.intersection)) {
-				this.offset.copy(this.intersection).sub(this.selected.position);
-			}
-		}
 	}
 
+	// This function will remove the particles on touchend
 	onUp(e) {
 		this.isDown = false;
+
+		// For each touch that ended, remove the particle
+		for (let i = 0; i < e.changedTouches.length; i++) {
+			const touch = e.changedTouches[i];
+			const touchId = touch.identifier;
+
+			this.removeParticle(touchId);
+		}
 
 		this.emit('interactive-up', { object: this.hovered });
 	}
 
+	// This function will remove the particles for a specific touchId
+	removeParticle(touchId) {
+		const particle = this.touchParticles[touchId];
+		if (particle) {
+			this.objects = this.objects.filter(obj => obj !== particle);  // Remove from objects
+			this.touchParticles[touchId] = null;  // Remove from the touch particles map
+		}
+	}
+
+	// Helper function to create a new particle based on touchId
+	createParticle(touchId, position) {
+		const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+		const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+		const particle = new THREE.Mesh(geometry, material);
+
+		// Set particle position
+		particle.position.set(position.x, position.y, position.z);
+		this.objects.push(particle);
+
+		// Store particle info by touchId
+		this.touchParticles[touchId] = particle;
+	}
+
+	// Helper function to update an existing particle's position
+	updateParticle(touchId, position) {
+		const particle = this.touchParticles[touchId];
+		if (particle) {
+			particle.position.set(position.x, position.y, position.z);
+		}
+	}
+
 	onLeave(e) {
 		this.onUp(e);
-		
 		this.emit('interactive-out', { object: this.hovered });
 		this.hovered = null;
 	}
