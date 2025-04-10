@@ -3,7 +3,7 @@ const HALF_PI = Math.PI / 2;
 const TWO_PI = Math.PI * 2;
 const QUARTER_PI = Math.PI / 4;
 const DEG_TO_RAD = Math.PI / 180;
-const RAD_TO_DEG = 180 / Math.PI;
+const RAD_TO_DEG =   180 / Math.PI;
 
 const clamp = (num, min, max) => {
 	if (max < min) {
