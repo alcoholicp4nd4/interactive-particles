@@ -14,6 +14,23 @@ A tutorial demonstrating how to draw a large number of particles with Three.js a
 - Run `npm start`
 - Build `npm run build`
 
+## OpenSSL Configuration (if you encounter build errors)
+
+If you see errors related to OpenSSL when running or building the project (especially with Node.js v17+), use the `--openssl-legacy-provider` flag as shown below based on your OS:
+
+### Linux :
+```bash
+-sudo apt update
+-sudo apt install openssl
+-export NODE_OPTIONS=--openssl-legacy-provider
+
+### Windows CMD:
+-set NODE_OPTIONS=--openssl-legacy-provider
+
+### Powershell:
+-$env:NODE_OPTIONS="--openssl-legacy-provider"
+
+
 ## Libraries
 - [ControlKit](https://github.com/brunoimbrizi/controlkit.js) - GUI
 - [gsap](https://www.npmjs.com/package/gsap) - animation platform
