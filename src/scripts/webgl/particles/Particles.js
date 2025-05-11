@@ -9,6 +9,9 @@ export default class Particles {
 	constructor(webgl) {
 		this.webgl = webgl;
 		this.container = new THREE.Object3D();
+		this.maxParticles = 13000; // Set a maximum particle count
+		this.particlePool = []; // Pool for reusing particles
+		this.activeParticles = []; // Currently active particles
 	}
 
 	init(src) {
@@ -34,15 +37,11 @@ export default class Particles {
 	initPoints(discard) {
 		this.numPoints = this.width * this.height;
 
-		let numVisible = this.numPoints;
-		let threshold = 0;
+		let numVisible = 0; // Initialize visible count
+		let threshold = 34; // Set the threshold for brightness
 		let originalColors;
 
 		if (discard) {
-			// discard pixels darker than threshold #22
-			numVisible = 0;
-			threshold = 34;
-
 			const img = this.texture.image;
 			const canvas = document.createElement('canvas');
 			const ctx = canvas.getContext('2d');
@@ -55,11 +54,10 @@ export default class Particles {
 			const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 			originalColors = Float32Array.from(imgData.data);
 
+			// Count visible particles based on the threshold
 			for (let i = 0; i < this.numPoints; i++) {
 				if (originalColors[i * 4 + 0] > threshold) numVisible++;
 			}
-
-			// console.log('numVisible', numVisible, this.numPoints);
 		}
 
 		const uniforms = {
@@ -78,7 +76,6 @@ export default class Particles {
 			fragmentShader: glslify(require('../../../shaders/particle.frag')),
 			depthTest: false,
 			transparent: true,
-			// blending: THREE.AdditiveBlending
 		});
 
 		const geometry = new THREE.InstancedBufferGeometry();
@@ -102,19 +99,22 @@ export default class Particles {
 		// index
 		geometry.setIndex(new THREE.BufferAttribute(new Uint16Array([ 0, 2, 1, 2, 3, 1 ]), 1));
 
-		const indices = new Uint16Array(numVisible);
-		const offsets = new Float32Array(numVisible * 3);
-		const angles = new Float32Array(numVisible);
+		const indices = new Uint16Array(this.maxParticles); // Use maxParticles
+		const offsets = new Float32Array(this.maxParticles * 3);
+		const angles = new Float32Array(this.maxParticles);
 
-		for (let i = 0, j = 0; i < this.numPoints; i++) {
-			if (discard && originalColors[i * 4 + 0] <= threshold) continue;
+		let j = 0; // Counter for active particles
+		for (let i = 0; i < this.numPoints; i++) {
+			if (discard && originalColors[i * 4 + 0] <= threshold) continue; // Skip dark particles
 
-			offsets[j * 3 + 0] = i % this.width;
-			offsets[j * 3 + 1] = Math.floor(i / this.width);
+			if (j >= this.maxParticles) break; // Respect maxParticles limit
 
-			indices[j] = i;
+			offsets[j * 3 + 0] = Math.random() * this.width; // Random x position
+			offsets[j * 3 + 1] = Math.random() * this.height; // Random y position
 
-			angles[j] = Math.random() * Math.PI;
+			indices[j] = j; // Use the index directly
+
+			angles[j] = Math.random() * Math.PI; // Random angle
 
 			j++;
 		}
